@@ -1,0 +1,97 @@
+name: Carla Win64
+
+on:
+  workflow_dispatch:
+
+env:
+  CACHE_VERSION: 6
+  DEBIAN_FRONTEND: noninteractive
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  PAWPAW_SKIP_LTO: 1
+  PAWPAW_SKIP_TESTS: 1
+  PAWPAW_VERSION: 6ff87c77cf680ab1b18ca36b79e9e09732d34fc3
+
+jobs:
+  win64:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ubuntu:22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/PawPawBuilds
+          key: win64-v${{ env.CACHE_VERSION }}
+
+      - name: Bootstrap Win64
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -yqq git unzip zip
+
+          git clone https://github.com/DISTRHO/PawPaw.git
+          git -C PawPaw checkout ${{ env.PAWPAW_VERSION }}
+
+          ./PawPaw/.github/workflows/bootstrap-deps.sh win64
+          ./PawPaw/bootstrap-carla.sh win64
+          ./PawPaw/.cleanup.sh win64
+
+      - name: Build Win64
+        shell: bash
+        run: |
+          source PawPaw/local.env win64
+
+          echo "========================================"
+          echo "Checking FluidSynth"
+          echo "========================================"
+
+          echo "PKG_CONFIG=$PKG_CONFIG"
+          echo "PAWPAW_PREFIX=$PAWPAW_PREFIX"
+
+          echo "--- FluidSynth version ---"
+          $PKG_CONFIG --modversion fluidsynth
+
+          echo "--- FluidSynth pkg-config test ---"
+          $PKG_CONFIG --exists fluidsynth
+
+          echo "--- FluidSynth cflags ---"
+          $PKG_CONFIG --cflags fluidsynth
+
+          echo "--- FluidSynth libs ---"
+          $PKG_CONFIG --libs fluidsynth
+
+          echo "========================================"
+          echo "Carla feature detection"
+          echo "========================================"
+
+          make features
+
+          echo "========================================"
+          echo "Building Carla Win64"
+          echo "========================================"
+
+          make NOOPT=true ${MAKE_ARGS}
+          make NOOPT=true ${MAKE_ARGS} win32r
+
+          echo "========================================"
+          echo "Packaging Carla"
+          echo "========================================"
+
+          make dist ${MAKE_ARGS} -j 1
+
+          echo "========================================"
+          echo "Final ZIP"
+          echo "========================================"
+
+          ls -lh ./*.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Carla Win64
+          path: ./*.zip
