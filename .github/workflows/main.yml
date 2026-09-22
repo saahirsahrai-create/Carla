@@ -1,0 +1,63 @@
+name: Carla Win64
+
+on:
+  workflow_dispatch:
+
+env:
+  CACHE_VERSION: 6
+  DEBIAN_FRONTEND: noninteractive
+  HOMEBREW_NO_AUTO_UPDATE: 1
+  HOMEBREW_NO_INSTALL_CLEANUP: 1
+  PAWPAW_SKIP_LTO: 1
+  PAWPAW_SKIP_TESTS: 1
+  PAWPAW_VERSION: 6ff87c77cf680ab1b18ca36b79e9e09732d34fc3
+
+jobs:
+  win64:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ubuntu:22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/PawPawBuilds
+          key: win64-v${{ env.CACHE_VERSION }}
+
+      - name: Bootstrap win64 cross-compiled
+        shell: bash
+        run: |
+          apt-get update -qq
+          apt-get install -yqq git unzip zip
+
+          git clone https://github.com/DISTRHO/PawPaw.git
+          git -C PawPaw checkout ${{ env.PAWPAW_VERSION }}
+
+          ./PawPaw/.github/workflows/bootstrap-deps.sh win64
+          ./PawPaw/bootstrap-carla.sh win64
+          ./PawPaw/.cleanup.sh win64
+
+      - name: Build win64 cross-compiled
+        shell: bash
+        run: |
+          source PawPaw/local.env win64
+
+          make features
+          make NOOPT=true ${MAKE_ARGS}
+          make NOOPT=true ${MAKE_ARGS} win32r
+
+          make dist ${MAKE_ARGS} TESTING=true -j 1
+          make dist ${MAKE_ARGS} TESTING=true -j 1
+          make dist ${MAKE_ARGS} TESTING=true -j 1
+          make dist ${MAKE_ARGS} TESTING=true -j 1
+          make dist ${MAKE_ARGS} -j 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win64 zip
+          path: ./*.zip
