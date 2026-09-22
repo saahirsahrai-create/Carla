@@ -29,7 +29,7 @@ jobs:
             ~/PawPawBuilds
           key: win64-v${{ env.CACHE_VERSION }}
 
-      - name: Bootstrap win64 cross-compiled
+      - name: Bootstrap Win64
         shell: bash
         run: |
           apt-get update -qq
@@ -42,7 +42,7 @@ jobs:
           ./PawPaw/bootstrap-carla.sh win64
           ./PawPaw/.cleanup.sh win64
 
-      - name: Build win64 cross-compiled
+      - name: Build Win64
         shell: bash
         run: |
           source PawPaw/local.env win64
@@ -51,13 +51,9 @@ jobs:
           make NOOPT=true ${MAKE_ARGS}
           make NOOPT=true ${MAKE_ARGS} win32r
 
-          make dist ${MAKE_ARGS} TESTING=true -j 1
-          make dist ${MAKE_ARGS} TESTING=true -j 1
-          make dist ${MAKE_ARGS} TESTING=true -j 1
-          make dist ${MAKE_ARGS} TESTING=true -j 1
           make dist ${MAKE_ARGS} -j 1
 
       - uses: actions/upload-artifact@v4
         with:
-          name: win64 zip
+          name: Carla Win64
           path: ./*.zip
